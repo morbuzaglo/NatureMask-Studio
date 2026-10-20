@@ -26,7 +26,18 @@ Status: ✅ done & tested · 🟡 partial · ⬜ not started. Updated at each mi
 - ✅ Synthetic target from spectrum (+ tones, stationary/intermittent/varying), demo machines (synthetic)
 - ✅ QA: spectrogram inspection found & fixed frog clicks (hard gating) and spiky rain transients
 - Tests: 82 unit tests pass (chunk invariance bit-exact for all modules, seeds, presets, spectra, loop, 2-min stability)
-## Milestone 4 — Masking optimization ⬜
+## Milestone 4 — Masking optimization ✅
+- ✅ Objective J = w1·ML + w2·AL + w3·UN (all in dB), 4 presets + custom weights, SLSQP multi-start
+- ✅ Constraints: max masker L_A, max mix L_A; bounds on module offsets and bed EQ
+- ✅ Infeasibility report (bands still audible, required masker level, LF warning)
+- ✅ Pareto sweep (non-dominated set)
+- ✅ Temporal adaptation curve (asymmetric smoothing, slew limit)
+- ✅ Engine: targets from recordings / spectra / Lw (+distance) / LA-only templates / demos; analysis
+  (levels, statistics, bands, PSD, spectrogram, tones, temporal class, difficulty heuristic)
+- ✅ Generation to disk (memmap), common-gain previews, evaluation from rendered audio, exports module
+- Finding: a dB² masking loss made every objective push the masker to its cap ("louder is better");
+  fixed by expressing ML as RMS dB (documented in skill).
+- Tests: 89 unit tests pass
 ## Milestone 5 — Frontend ⬜
 ## Milestone 6 — Integration & export ⬜
 ## Milestone 7 — Testing & refinement ⬜
