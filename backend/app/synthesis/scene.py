@@ -88,15 +88,17 @@ def _module_psd_cached(mtype: str, params_key: str, seed: int, fs: int, seconds:
     params = json.loads(params_key)
     cls = MODULE_TYPES[mtype]
     mod = cls(fs, seed, params, seconds + 5)
-    x = mod.render(fs, int(seconds * fs))  # skip first second (filter/process settling)
+    x = mod.render(0, int(seconds * fs))  # exactly the window that generation renders and evaluation analyses
     mono = x.mean(axis=1) if x.ndim == 2 else x
     f, p = welch_psd(mono, fs, seg_s=0.25)
     pl, pr = welch_psd(x[:, 0], fs, seg_s=0.25)[1], welch_psd(x[:, 1], fs, seg_s=0.25)[1]
     return f, 0.5 * (pl + pr), p
 
 
-def module_psd(m: dict, fs: int, scene_seed: int, seconds: float = 12.0):
-    """Long-term PSD of a module at 0 dB level (average of L/R channel PSDs, per channel units^2/Hz)."""
+def module_psd(m: dict, fs: int, scene_seed: int, seconds: float = 30.0):
+    """PSD of a module at 0 dB level over [0, seconds) of the SAME seeded audio the scene will render
+    (average of L/R channel PSDs, units^2/Hz). Using the identical window makes the optimizer's level
+    predictions match the rendered result (a short generic excerpt was off by up to 11 dB for gusty beds)."""
     import json
     params = dict(m.get("params", {}))
     params.setdefault("gust_seed", derive_seed(scene_seed, "gusts"))

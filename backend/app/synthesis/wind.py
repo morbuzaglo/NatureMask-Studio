@@ -12,11 +12,14 @@ CTRL = 100
 
 def gust_signal(seed, kind, duration_s, strength, gustiness, timescale_s=6.0):
     """Shared gust process (log-intensity OU). Same seed -> same gusts for wind and leaves (coherence)."""
-    rng = np.random.default_rng(derive_seed(seed, "gust", kind))
+    # Separate random streams: the value at time t never depends on the total duration (same seed ->
+    # same gusts for any render length). Log-intensity X = g + slow is Gaussian with variance s2, so
+    # I = exp(X - s2) has E[I^2] = 1: the module's long-term energy is set by its level, not by luck.
     n = int((duration_s + 90) * CTRL)
-    g = ou_process(n, 1 / CTRL, 1 / timescale_s, 0.25 + 0.6 * gustiness, rng)
-    slow = ou_process(n, 1 / CTRL, 1 / 40.0, 0.3, rng)
-    return np.exp(g + slow) * strength
+    sg, ss = 0.25 + 0.6 * gustiness, 0.25
+    g = ou_process(n, 1 / CTRL, 1 / timescale_s, sg, np.random.default_rng(derive_seed(seed, "gust", kind, "fast")))
+    slow = ou_process(n, 1 / CTRL, 1 / 25.0, ss, np.random.default_rng(derive_seed(seed, "gust", kind, "slow")))
+    return np.exp(g + slow - (sg ** 2 + ss ** 2)) * strength
 
 
 class Wind(Module):

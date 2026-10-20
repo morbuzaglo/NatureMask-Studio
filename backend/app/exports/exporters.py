@@ -200,7 +200,8 @@ def csv_tables(ev: dict) -> dict:
     for i, f in enumerate(ev["target"]["third"]["f"]):
         rows3.append([round(f, 2), ev["third_labels"][i], round(ev["target"]["third"]["L"][i], 2),
                       round(ev["masker"]["third"]["L"][i], 2), round(ev["mix"]["third"]["L"][i], 2),
-                      round(ev["masker_to_target_third"][i], 2), round(float(a_weighting_db(f)), 2)])
+                      "" if ev["masker_to_target_third"][i] is None else round(ev["masker_to_target_third"][i], 2),
+                      round(float(a_weighting_db(f)), 2)])
     rowso = [["f_center_hz", "label", "target_dB", "masker_dB", "mix_dB"]]
     for i, f in enumerate(ev["target"]["octave"]["f"]):
         rowso.append([round(f, 2), ev["octave_labels"][i], round(ev["target"]["octave"]["L"][i], 2),

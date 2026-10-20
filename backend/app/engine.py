@@ -82,7 +82,7 @@ def target_from_signal(sig, fs, domain: str, k_pa_per_unit: float | None = None,
 def target_from_spectrum(f, L, representation: str, quantity: str = "Lp", distance_m: float | None = None,
                          field: str = "hemispherical", directivity_db: float = 0.0, air_absorption: bool = False,
                          tones=None, pattern="stationary", name="Spectrum", provenance="MEASURED", a_weighted=False,
-                         notes=None):
+                         notes=None, measured_at_m: float | None = None):
     from .io.importers import snap_to_exact
     f = np.asarray(f, float)
     L = np.asarray(L, float)
@@ -99,6 +99,14 @@ def target_from_spectrum(f, L, representation: str, quantity: str = "Lp", distan
         meta["lw_conversion"] = info
         provenance = "ESTIMATED_FROM_LW"
     tones = [dict(t) for t in (tones or [])]
+    if quantity == "Lp" and measured_at_m and distance_m and abs(distance_m - measured_at_m) > 1e-9:
+        corr = -20 * np.log10(distance_m / measured_at_m)  # free-field point source (inverse square law)
+        L = L + corr
+        for t in tones:
+            t["level_db"] = t["level_db"] + corr
+        meta["distance_correction"] = {"measured_at_m": measured_at_m, "listener_m": distance_m, "correction_db": float(corr),
+                                       "model": "free-field point source, -20 log10(r/d); invalid in the near field"}
+        provenance = "ESTIMATED_DISTANCE_CORRECTED" if provenance == "MEASURED" else provenance
     return {"kind": "spectrum", "name": name, "domain": "SPECTRUM_ONLY", "calibrated": True,
             "provenance": provenance, "representation": rep, "pattern": pattern, "tones": tones,
             "listener_distance_m": distance_m, "meta": meta}, {"f": f, "L": L}

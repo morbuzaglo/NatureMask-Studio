@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from .. import engine
 from ..acoustics.bands import band_centres, nominal_label
 from ..exports.exporters import export as do_export
-from ..generation import generate as do_generate
+from ..generation import analysis_window_s, generate as do_generate
 from ..io import importers
 from ..optimization.optimizer import OBJECTIVES, OptimizeRequest, optimize_masking
 from ..storage import projects as store
@@ -220,6 +220,7 @@ class TableConfig(BaseModel):
     air_absorption: bool = False
     pattern: str = "stationary"
     name: str = "Spectrum table"
+    measured_at_m: float | None = None
 
 
 @router.post("/projects/{pid}/target/table")
@@ -235,7 +236,7 @@ def configure_table(pid: str, body: TableConfig):
         meta, arr = engine.target_from_spectrum(spec["f"], spec["L"], spec["representation"], body.quantity,
                                                 body.distance_m, body.field, body.directivity_db, body.air_absorption,
                                                 pattern=body.pattern, name=body.name, a_weighted=body.a_weighted,
-                                                notes=spec["warnings"])
+                                                notes=spec["warnings"], measured_at_m=body.measured_at_m)
     except (ValueError, importers.ImportErrorUser) as e:
         raise HTTPException(400, str(e))
     return _store_spectrum(pid, p, meta, arr, spec["warnings"])
@@ -256,6 +257,7 @@ class SpectrumBody(BaseModel):
     provenance: str = "MEASURED"
     name: str = "Spectrum"
     uncertainty_db: float | None = None
+    measured_at_m: float | None = None
 
 
 @router.post("/projects/{pid}/target/spectrum")
@@ -266,7 +268,8 @@ def set_spectrum(pid: str, body: SpectrumBody):
     try:
         meta, arr = engine.target_from_spectrum(body.f, body.L, body.representation, body.quantity, body.distance_m,
                                                 body.field, body.directivity_db, body.air_absorption, body.tones,
-                                                body.pattern, body.name, body.provenance, body.a_weighted)
+                                                body.pattern, body.name, body.provenance, body.a_weighted,
+                                                measured_at_m=body.measured_at_m)
     except ValueError as e:
         raise HTTPException(400, str(e))
     meta["uncertainty_db"] = body.uncertainty_db
@@ -279,6 +282,7 @@ class ManualBody(BaseModel):
     lc: float | None = None
     template: str = "broadband"
     distance_m: float | None = None
+    listener_m: float | None = None
     operating_mode: str = ""
     uncertainty_db: float | None = None
     pattern: str = "stationary"
@@ -295,10 +299,10 @@ def set_manual(pid: str, body: ManualBody):
     fm, L, tones = engine.template_spectrum(body.template, body.la)
     notes = [f"Spectrum ESTIMATED from template '{engine.MACHINE_TEMPLATES[body.template]['label']}' scaled to "
              f"LA = {body.la} dB. A single dBA value does not define a unique spectrum."]
-    meta, arr = engine.target_from_spectrum(fm, L, "third", "Lp", None, tones=tones, pattern=body.pattern,
-                                            name=body.name, provenance="ESTIMATED_FROM_TEMPLATE", notes=notes)
+    meta, arr = engine.target_from_spectrum(fm, L, "third", "Lp", body.listener_m, tones=tones, pattern=body.pattern,
+                                            name=body.name, provenance="ESTIMATED_FROM_TEMPLATE", notes=notes,
+                                            measured_at_m=body.distance_m)
     meta["manual"] = body.model_dump()
-    meta["listener_distance_m"] = body.distance_m
     meta["uncertainty_db"] = body.uncertainty_db
     warn = list(notes)
     if body.lc is not None:
@@ -420,7 +424,7 @@ def optimize(pid: str, body: OptimizeBody):
                           k_db=body.k_db if body.k_db is not None else s["k_db"],
                           max_masker_la=max_m, max_mix_la=body.max_mix_la if body.max_mix_la is not None else s.get("max_mix_la"),
                           allow_eq=body.allow_eq if body.allow_eq is not None else s.get("allow_eq", True),
-                          tonal_bands_hz=tones)
+                          tonal_bands_hz=tones, analysis_s=analysis_window_s(float(s["duration_s"])))
     try:
         r = optimize_masking(req, pareto=body.pareto)
     except ValueError as e:

@@ -168,3 +168,13 @@ def test_errors_are_user_friendly():
     assert r.status_code == 400 and "MATLAB" in r.json()["detail"]
     assert client.post(f"/api/projects/{pid}/optimize", json={}).status_code == 400
     assert client.patch(f"/api/projects/{pid}", json={"settings": {"duration_s": 5}}).status_code == 400
+
+
+def test_lp_distance_correction():
+    pid = new_project("Distance")
+    body = {"f": [500, 1000, 2000], "L": [80, 80, 80], "representation": "octave", "quantity": "Lp",
+            "measured_at_m": 1.0, "distance_m": 4.0}
+    r = client.post(f"/api/projects/{pid}/target/spectrum", json=body).json()
+    assert r["target"]["provenance"] == "ESTIMATED_DISTANCE_CORRECTED"
+    oc = r["analysis"]["octave"]
+    assert oc["L"][oc["labels"].index("1k")] == pytest.approx(80 - 12.04, abs=0.15)

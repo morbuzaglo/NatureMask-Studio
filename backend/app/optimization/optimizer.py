@@ -47,6 +47,7 @@ class OptimizeRequest:
     max_mix_la: float | None = None
     allow_eq: bool = True
     tonal_bands_hz: list = field(default_factory=list)  # prominent target tones (extra weight)
+    analysis_s: float = 30.0         # module analysis window = evaluation window (see generation.ANALYSIS_WINDOW_S)
 
 
 def _interp_eq_db(q, freqs):
@@ -81,7 +82,7 @@ class MaskingProblem:
         self.M = len(self.mods)
         self.Pm, self.T3m, self.tonal = [], [], []
         for m in self.mods:
-            fm_, pm_ = module_psd(m, req.fs, req.seed)
+            fm_, pm_ = module_psd(m, req.fs, req.seed, req.analysis_s)
             pm_ = np.interp(req.f, fm_, pm_)
             self.Pm.append(W @ pm_)
             self.T3m.append(band_power_from_psd(req.f, pm_, 3, 20, min(20000, 0.45 * req.fs))[1])

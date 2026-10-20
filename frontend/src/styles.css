@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* Design: an instrument-panel workstation. Moss-charcoal surfaces, sage accent for nature (masker),
+   amber for the machine (target), pale blue for the combined mix, lavender for model thresholds. */
+:root, [data-theme="dark"] {
+  --bg: #0d1210;
+  --panel: #131a17;
+  --panel-2: #18211d;
+  --raised: #1e2924;
+  --line: #26322c;
+  --line-strong: #34443b;
+  --text: #e4ebe6;
+  --muted: #93a49a;
+  --faint: #66766d;
+  --accent: #7fc8a0;
+  --accent-ink: #0d1210;
+  --target: #e8a04b;
+  --masker: #6cc59a;
+  --mix: #a9c7f0;
+  --threshold: #b79be8;
+  --good: #6cc59a;
+  --warn: #e3b35a;
+  --bad: #e57373;
+  --chart-grid: #222c27;
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  --bg: #f3f5f2;
+  --panel: #ffffff;
+  --panel-2: #f7f9f6;
+  --raised: #eef2ee;
+  --line: #dbe2dc;
+  --line-strong: #c3cec6;
+  --text: #17201b;
+  --muted: #5a6a61;
+  --faint: #8a988f;
+  --accent: #2f8a5e;
+  --accent-ink: #ffffff;
+  --target: #c07018;
+  --masker: #2f8a5e;
+  --mix: #3a6fb5;
+  --threshold: #7a56c9;
+  --good: #2f8a5e;
+  --warn: #a8720f;
+  --bad: #c0392b;
+  --chart-grid: #e6ebe7;
+  color-scheme: light;
+}
+
+@theme {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-target: var(--target);
+  --color-masker: var(--masker);
+  --color-mix: var(--mix);
+  --color-threshold: var(--threshold);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.btn { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem .9rem; border-radius: 8px; font-weight: 600;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); transition: background .15s, border-color .15s; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--line); }
+.input, select.input { width: 100%; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 7px;
+  padding: .45rem .6rem; color: var(--text); font-family: var(--font-mono); font-size: 13px; }
+.input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=range] { accent-color: var(--accent); width: 100%; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+.chip { display: inline-flex; align-items: center; gap: .35rem; font-size: 11.5px; padding: .15rem .5rem; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap; }
+.tab { padding: .45rem .8rem; border-radius: 7px; color: var(--muted); font-weight: 600; }
+.tab[aria-selected="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@keyframes rise { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .35s ease-out both; }

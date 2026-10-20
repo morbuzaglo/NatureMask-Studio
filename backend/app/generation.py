@@ -18,6 +18,12 @@ from .psychoacoustics import masking
 from .synthesis.scene import ADAPT_RATE, Scene
 
 PEAK_TARGET = 10 ** (-1 / 20)  # -1 dBFS
+ANALYSIS_WINDOW_S = 60.0
+
+
+def analysis_window_s(duration_s: float) -> float:
+    """Window [0, T) used both by the optimizer's module analysis and by the evaluation."""
+    return float(min(duration_s, ANALYSIS_WINDOW_S))
 
 
 def generate(project_dir: str, meta: dict, arrays: dict, scene_cfg: dict, opt: dict | None, settings: dict,
@@ -118,8 +124,16 @@ def evaluate(project_dir: str, meta: dict, arrays: dict, info: dict, settings: d
     cal = bool(meta["calibrated"])
     ref = P0 if cal else 1.0
     masker = load_masker(project_dir)[: info["n"]]
-    n_an = min(info["n"], fs * 120)  # analyse up to 2 minutes
+    n_an = int(analysis_window_s(info["duration_s"]) * fs)  # same window the optimizer analysed
     seg = np.asarray(masker[:n_an], dtype=np.float64)
+    # full-duration time-domain LAeq of the masker (reveals any drift beyond the analysis window)
+    from .acoustics.levels import apply_weighting
+    acc, pos = 0.0, 0
+    while pos < info["n"]:
+        blk = np.asarray(masker[pos:pos + fs * 30], dtype=np.float64)
+        acc += float(np.sum(apply_weighting(blk, fs, "A") ** 2))
+        pos += blk.shape[0]
+    la_full = 10 * np.log10(max(acc / (2 * info["n"]), 1e-300) / ref ** 2)
     fL, pL = spectral.welch_psd(seg[:, 0], fs, 0.5)
     _, pR = spectral.welch_psd(seg[:, 1], fs, 0.5)
     pm = 0.5 * (pL + pR)
@@ -140,12 +154,17 @@ def evaluate(project_dir: str, meta: dict, arrays: dict, info: dict, settings: d
                      "LCeq": B.total_from_psd(f, p, ref, "C"),
                      "octave": {"f": fo.tolist(), "L": Lo.tolist()}, "third": {"f": f3.tolist(), "L": L3.tolist()},
                      "psd": {"f": f[1::step].tolist(), "db": psd_db.tolist()}}
+    res["masker"]["LAeq_full_duration"] = la_full
+    res["analysis_window_s"] = n_an / fs
     res["third_labels"] = [B.nominal_label(x) for x in res["target"]["third"]["f"]]
     res["octave_labels"] = [B.nominal_label(x) for x in res["target"]["octave"]["f"]]
     res["delta_LA"] = res["mix"]["LAeq"] - res["target"]["LAeq"]
     res["masker_to_target_LA"] = res["masker"]["LAeq"] - res["target"]["LAeq"]
-    mtr = np.array(res["masker"]["third"]["L"]) - np.array(res["target"]["third"]["L"])
-    res["masker_to_target_third"] = mtr.tolist()
+    lt3 = np.array(res["target"]["third"]["L"])
+    mtr = np.array(res["masker"]["third"]["L"]) - lt3
+    # only bands where the machine has relevant energy (within 45 dB of its strongest band)
+    mtr = np.where(lt3 >= lt3.max() - 45, mtr, np.nan)
+    res["masker_to_target_third"] = [None if not np.isfinite(v) else float(v) for v in mtr]
     res["erb"] = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in est.items()
                   if k in ("bands_hz", "L_target", "L_masker", "threshold", "margin", "importance")}
     res["prominence_index_db"] = est["prominence_index_db"]
