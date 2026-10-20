@@ -178,3 +178,13 @@ def test_lp_distance_correction():
     assert r["target"]["provenance"] == "ESTIMATED_DISTANCE_CORRECTED"
     oc = r["analysis"]["octave"]
     assert oc["L"][oc["labels"].index("1k")] == pytest.approx(80 - 12.04, abs=0.15)
+
+
+def test_explicit_null_cap_means_unconstrained():
+    pid = new_project("Cap")
+    client.post(f"/api/projects/{pid}/target/demo", json={"kind": "drill"})
+    client.put(f"/api/projects/{pid}/scene", json={"preset": "riverside"})
+    capped = client.post(f"/api/projects/{pid}/optimize", json={"objective": "max_masking"}).json()
+    free = client.post(f"/api/projects/{pid}/optimize", json={"objective": "max_masking", "masker_cap_rel_db": None}).json()
+    assert capped["constraints"]["max_masker_la"] is not None and free["constraints"]["max_masker_la"] is None
+    assert free["levels"]["LA_masker"] > capped["levels"]["LA_masker"] + 5

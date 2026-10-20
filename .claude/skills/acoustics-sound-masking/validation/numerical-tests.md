@@ -50,3 +50,9 @@ MATLAB R2021b `load` of exported .mat (performed when MATLAB is available; `matl
 
 ## Not covered by numerical tests (needs listening tests)
 Perceived masking, naturalness, pleasantness, fatigue — see reference-cases.md §Listening protocol.
+
+## Implementation status (NatureMask Studio, 2026-10-20)
+102 pytest tests pass (unit, integration, acoustic validation) including: predicted vs rendered masker L_A
+within 0.75 dB for gusty presets (observed ≤ 0.06 dB), duration-independent gusts, MAT read-back, explicit
+null level cap = unconstrained. MATLAB R2021b `load` check of the Pa MAT export: L_Zeq exported 81.18 dB vs
+recomputed in MATLAB 81.18 dB. Browser walkthrough (Edge/Playwright): 0 console errors.

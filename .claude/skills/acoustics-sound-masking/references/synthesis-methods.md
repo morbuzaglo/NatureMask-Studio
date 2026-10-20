@@ -14,6 +14,16 @@ envelope for the optimizer. Typical parameters are `ENGINEERING_HEURISTIC` unles
   doubling) + air-absorption low-pass (ISO 9613-1 α(f)·r) + optional small inter-channel delay.
   Beds: two decorrelated noise streams (coherence < 0.2) for width.
 
+## Lessons from implementation (tested 2026-10-20)
+- **Normalise lognormal modulators.** Gust intensity `I = exp(X)` with Gaussian X (variance s²) has
+  `E[I²] = exp(2s²)`; use `I = exp(X − s²)` so `E[I²] = 1` and the module level means what it says.
+- **Never let a random path depend on the render length.** Draw each process from its own seeded stream;
+  two processes from one stream made the second depend on the duration.
+- **Predict from the exact seeded window you will render.** A 12 s generic excerpt of gusty beds gave level
+  predictions off by up to 11 dB; analysing the identical window gives agreement within ≈ 0.1 dB.
+- **No hard gating.** `sign()`-gated pulses produced broadband clicks (seen in spectrograms); use smooth
+  per-pulse envelopes. Bound heavy-tailed event amplitudes (rain crest factor 25.6 → 19.3 dB).
+
 ## Wind
 Broadband noise shaped by a low-pass/band-pass whose cutoff follows gust intensity:
 `g(t) = OU(θ=1/6 s⁻¹)`, intensity `I = exp(g)`; level ∝ 20log10 I; spectral centroid rises with I

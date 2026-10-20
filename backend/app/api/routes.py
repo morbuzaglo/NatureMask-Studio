@@ -410,7 +410,8 @@ def optimize(pid: str, body: OptimizeBody):
     from ..acoustics.bands import total_from_psd
     from ..acoustics.levels import P0
     la_t = total_from_psd(f, psd, P0 if meta["calibrated"] else 1.0, "A")
-    cap_rel = body.masker_cap_rel_db if body.masker_cap_rel_db is not None else s.get("masker_cap_rel_db", 3.0)
+    # an explicitly sent null means "no cap"; an omitted field falls back to the project setting
+    cap_rel = body.masker_cap_rel_db if "masker_cap_rel_db" in body.model_fields_set else s.get("masker_cap_rel_db", 3.0)
     max_m = body.max_masker_la if body.max_masker_la is not None else (la_t + cap_rel if cap_rel is not None else None)
     tones = [t["f"] for t in meta.get("tones", [])]
     if meta["kind"] == "signal":
@@ -422,7 +423,8 @@ def optimize(pid: str, body: OptimizeBody):
                           weights=tuple(body.weights or s.get("weights") or (1, 1, 0.5)),
                           margin_db=body.margin_db if body.margin_db is not None else s["margin_db"],
                           k_db=body.k_db if body.k_db is not None else s["k_db"],
-                          max_masker_la=max_m, max_mix_la=body.max_mix_la if body.max_mix_la is not None else s.get("max_mix_la"),
+                          max_masker_la=max_m,
+                          max_mix_la=body.max_mix_la if "max_mix_la" in body.model_fields_set else s.get("max_mix_la"),
                           allow_eq=body.allow_eq if body.allow_eq is not None else s.get("allow_eq", True),
                           tonal_bands_hz=tones, analysis_s=analysis_window_s(float(s["duration_s"])))
     try:

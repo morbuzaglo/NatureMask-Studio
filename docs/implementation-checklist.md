@@ -38,6 +38,36 @@ Status: ✅ done & tested · 🟡 partial · ⬜ not started. Updated at each mi
 - Finding: a dB² masking loss made every objective push the masker to its cap ("louder is better");
   fixed by expressing ML as RMS dB (documented in skill).
 - Tests: 89 unit tests pass
-## Milestone 5 — Frontend ⬜
-## Milestone 6 — Integration & export ⬜
-## Milestone 7 — Testing & refinement ⬜
+## Milestone 5 — Frontend ✅
+- ✅ Dashboard, Target Noise (import / spectral editor / manual / demo + analysis), Soundscape Designer,
+  Masking Laboratory, Audio Studio (sample-aligned A/B, blind detection test), Export Center, Settings
+- ✅ Dark (default) and light themes, Beginner/Expert modes, glossary tooltips, toasts, progress, offline fonts
+
+## Milestone 6 — Integration & export ✅
+- ✅ FastAPI routes, background jobs, local project storage (save / reopen)
+- ✅ WAV 16/24/32f, MAT (Pa or digital; SPL only when calibrated), CSV, JSON, HTML report — validated on write
+- ✅ MATLAB R2021b load verification; start.bat; requirements.txt
+
+## Milestone 7 — Testing & refinement ✅
+- ✅ 102 pytest tests, 42 skill checks, Edge browser walkthrough (0 console errors), 5 demonstration cases
+- ✅ 8 defects found by validation and fixed (docs/validation/validation-results.md)
+- ⬜ Listening tests (out of scope for automated work; protocol documented)
+
+## Definition of done — status
+| Item | Status |
+|---|---|
+| Skill with meaningful research | ✅ |
+| App starts on Windows (start.bat) | ✅ verified |
+| Frontend ↔ backend | ✅ |
+| MATLAB + spreadsheet import | ✅ |
+| Manual frequency-dependent SPL editing | ✅ |
+| Octave / third-octave analysis | ✅ |
+| Several natural generators | ✅ 16 |
+| Presets | ✅ 12 |
+| Meaningful, testable masking optimisation | ✅ (engineering estimate, documented) |
+| Preview target / masker / mix | ✅ |
+| WAV export / MATLAB export | ✅ |
+| Save and reopen projects | ✅ |
+| Numerical tests pass | ✅ |
+| Documentation | ✅ |
+| Offline | ✅ after installation |
