@@ -13,8 +13,9 @@ listening tests.
 ## Computation
 1. Centres `f_b = erb_number_to_hz(E)` for E = E(50 Hz) … E(f_max) step 1 ⇒ ~38 bands at 48 kHz.
 2. Filter powers with roex(p): `P_t,b = Σ G_t W_b Δf`, `P_m,b = Σ G_m W_b Δf`.
-3. Effective masker: `K_eff,b = K_dB + 10·τ_b` where τ_b ∈ [0,1] is the tonal fraction of the
-   masker in band b (birds/insects partially tonal ⇒ weaker masking of noise-like targets).
+3. Effective masker: `K_eff,b = K_dB − 10·τ_b` where τ_b ∈ [0,1] is the tonal fraction of the
+   masker in band b (birds/insects partially tonal ⇒ weaker masking of noise-like targets ⇒ lower
+   threshold; sign verified by unit test).
 4. Threshold `T_b = 10 log10(10^((L_m,b + K_eff,b)/10) + 10^(Tq(f_b)/10))` — Tq only if calibrated.
 5. Margin `d_b = L_t,b − T_b`; **masked** if `d_b ≤ −margin_dB`.
 6. Prominence index `PI = 10 log10 √Σ_b (10^(d_b/10))²` dB (0 dB ≈ just at estimated threshold in

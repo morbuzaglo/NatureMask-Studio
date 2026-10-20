@@ -9,9 +9,11 @@
 2. Z: `L_Zeq = 10 log10(mean(p²)/p0²)`.
 3. A / C weighting in the time domain: bilinear-transformed IEC analog filters
    (zeros at 0, poles at 20.6 Hz (×2), 107.7, 737.9, 12194 Hz (×2)); normalise gain at 1 kHz.
-   Implementation: `scipy.signal.zpk2tf → bilinear_zpk → sosfilt`. At fs = 48 kHz the bilinear
-   warping error near 10–16 kHz is small (< 0.5 dB at 16 kHz typical); alternatively weight in the
-   frequency domain from the PSD: `L_Aeq = 10 log10(∫ G(f) 10^(A(f)/10) df / p0²)` — exact for
+   **Caution (tested):** a plain bilinear transform of the IEC prototype deviates ≈ 1.2 dB at 10 kHz
+   for fs = 48 kHz (warping of the 12.2 kHz poles). Use instead a linear-phase FIR designed by
+   frequency sampling of the exact analytic |W(f)| (`firwin2`, 16383 taps at 48 kHz: ≤ 0.12 dB error
+   31.6 Hz–16 kHz, 0.5 dB at 20 Hz; 8191 taps gave 0.47 dB at 31.6 Hz;
+   group delay removed), or weight in the frequency domain from the PSD: `L_Aeq = 10 log10(∫ G(f) 10^(A(f)/10) df / p0²)` — exact for
    stationary signals; used for spectrum-only inputs.
 4. Fast time weighting on the weighted signal (τ = 0.125 s): `L_AF(t)`; `L_AFmax = max`.
 5. Percentiles from L_AF(t) sampled every 10 ms: `L_N = percentile(L_AF, 100−N)`.

@@ -44,8 +44,8 @@ Per ERB band b (centre f_b, 1-Cam spacing, 50 Hz–16 kHz ≈ 38 bands):
 3. **Masking margin** `d_b = L_t,b − T_b` (dB). d_b < 0 ⇒ predicted masked in that band.
 4. **Tonal correction**: if a tonal peak in band b passed TNR/PR screening, require extra margin
    `ΔK_tone` (default 0 dB, since the power-spectrum model is defined for tone-in-noise; for
-   narrowband/tonal *maskers* (birds, insects) apply masker-is-tonal offset +10 dB on K — they mask
-   noise poorly).
+   narrowband/tonal *maskers* (birds, insects) lower K by up to 10 dB (K_eff = K − 10·τ) — they
+   mask noise poorly, so the threshold they produce is lower).
 5. **Detectability index** (multiband energy detector, SDT combination): `d'_b = 10^(d_b/10)`
    (=1 at threshold), `d'_total = √Σ d'_b²`. Report `10 log10 d'_total` as "prominence index" (dB
    above the estimated detection threshold). This is a model index, **not** a probability of
