@@ -58,7 +58,20 @@ if not exist "frontend\dist\index.html" (
 rem --- run ----------------------------------------------------------------------------
 echo [3/3] Starting NatureMask Studio at http://127.0.0.1:%PORT%  (close this window to stop)
 start "" cmd /c "timeout /t 4 /nobreak >NUL & start http://127.0.0.1:%PORT%"
+if not exist "data\logs" mkdir "data\logs"
+echo %DATE% %TIME% starting on port %PORT% > "data\logs\start.log"
+".venv\Scripts\python.exe" -c "import sys, fastapi, uvicorn, numpy, scipy, soundfile; print('python', sys.version.split()[0], 'ok')" >> "data\logs\start.log" 2>&1
+if errorlevel 1 (
+  type "data\logs\start.log"
+  echo.
+  echo The Python environment is incomplete. Delete the .venv folder and run start.bat again.
+  pause
+  exit /b 1
+)
 ".venv\Scripts\python.exe" -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port %PORT%
+echo.
+echo NatureMask Studio has stopped (exit code %ERRORLEVEL%). If this was unexpected, the messages above explain why.
+pause
 goto :eof
 
 :err
