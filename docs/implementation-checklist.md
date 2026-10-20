@@ -17,7 +17,15 @@ Status: ✅ done & tested · 🟡 partial · ⬜ not started. Updated at each mi
 - ✅ Importers: MAT v5/v7.3, WAV, CSV/XLSX/XLS with detection, cleaning, A-weight removal
 - Tests: `tests/unit` 42 passed (2026-10-20)
 
-## Milestone 3 — Generative environmental audio ⬜
+## Milestone 3 — Generative environmental audio ✅
+- ✅ Block-based deterministic core (1 s blocks, per-block seeds, carried filter/oscillator state, event tails)
+- ✅ 16 modules: wind, leaves, grass, stream, waterfall, rain, drips, waves, birds (5 species-like profiles,
+  Markov song grammar), woodpecker, owl, crickets (Dolbear temperature law), night insects, cicadas, frogs, ambience
+- ✅ 12 presets incl. Custom; season / time-of-day / weather modifiers
+- ✅ Scene mixer with bed EQ (linear-phase FIR) and slow adaptation curve; seamless loop crossfade
+- ✅ Synthetic target from spectrum (+ tones, stationary/intermittent/varying), demo machines (synthetic)
+- ✅ QA: spectrogram inspection found & fixed frog clicks (hard gating) and spiky rain transients
+- Tests: 82 unit tests pass (chunk invariance bit-exact for all modules, seeds, presets, spectra, loop, 2-min stability)
 ## Milestone 4 — Masking optimization ⬜
 ## Milestone 5 — Frontend ⬜
 ## Milestone 6 — Integration & export ⬜
