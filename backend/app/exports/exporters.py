@@ -152,8 +152,13 @@ def write_mat(path, x_units, x_digital, fs, meta, info, evaluation, opts, cal, u
     data["f_oct"] = fo[:, None]
     data["f_third"] = f3[:, None]
     data["f_psd"] = f[:, None]
-    la = B.total_from_psd(f, p, P0 if cal else 1.0, "A")
-    lz = B.total_from_psd(f, p, P0 if cal else 1.0, "Z")
+    # Leq values are time integrals over the FULL exported signal (per-channel mean square), not PSD-based:
+    # Welch's Hann segments under-weight segment edges and bias fluctuating sounds by ~0.2 dB (found via MATLAB check)
+    from ..acoustics.levels import apply_weighting
+    refl = P0 if cal else 1.0
+    lz = 10 * np.log10(max(float(np.mean(x_units ** 2)), 1e-300) / refl ** 2)
+    xa = apply_weighting(x_units, fs, "A")
+    la = 10 * np.log10(max(float(np.mean(xa ** 2)), 1e-300) / refl ** 2)
     if cal:
         data.update({"L_Aeq": la, "L_Zeq": lz, "Lp_oct": Lo[:, None], "Lp_third": L3[:, None], "PSD": p[:, None]})
     else:  # never fabricate SPL: relative levels only, clearly named
@@ -171,7 +176,9 @@ def write_mat(path, x_units, x_digital, fs, meta, info, evaluation, opts, cal, u
         "level_reference": ("20e-6 Pa" if cal else "1.0 (full scale of target recording units)"),
         "target_domain": meta["domain"], "target_provenance": meta["provenance"],
         "seed": info["seed"], "loop": info["loop"], "adaptive": info["adaptive"],
-        "analysis_method": "Welch PSD (Hann, 0.5 s, 50%), ideal-edge band integration per IEC 61260-1 base-10 mid-bands",
+        "analysis_method": ("L_Aeq/L_Zeq: time-domain mean square over the full signal (A: linear-phase FIR from the "
+                            "IEC 61672-1 analytic response); bands/PSD: Welch (Hann, 0.5 s, 50 %, first <=120 s), "
+                            "ideal-edge integration at IEC 61260-1 base-10 mid-band frequencies"),
         "precision": "single" if single else "double",
         "components": [m["type"] for m in info["scene"].get("modules", []) if m.get("enabled", True)],
         "preset": info["scene"].get("preset"),
