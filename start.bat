@@ -27,16 +27,44 @@ if not defined PORT (
   exit /b 1
 )
 
+rem Keep Python's bytecode cache out of OneDrive: __pycache__ synced from another computer arrives as
+rem cloud-only placeholders that can hang the import forever.
+set "PYTHONPYCACHEPREFIX=%LOCALAPPDATA%\NatureMask-Studio\pycache"
+
 rem --- one-time setup -------------------------------------------------------------
-if not exist ".venv\Scripts\python.exe" (
-  where python >NUL 2>NUL
+rem A .venv synced from another computer (OneDrive) points to a Python that does not exist here:
+rem test that it actually runs and is new enough, otherwise rebuild it.
+if exist ".venv\Scripts\python.exe" (
+  ".venv\Scripts\python.exe" -c "import sys; sys.exit(sys.version_info < (3, 11))" >NUL 2>NUL
   if errorlevel 1 (
-    echo Python 3.10 or newer is required: https://www.python.org/downloads/
+    echo The Python environment in .venv was made on another computer or is broken - rebuilding it.
+    rmdir /s /q ".venv"
+  )
+)
+if not exist ".venv\Scripts\python.exe" (
+  set PYEXE=
+  for %%V in (3.13 3.12 3.11) do (
+    if not defined PYEXE (
+      py -%%V -c "import sys" >NUL 2>NUL
+      if not errorlevel 1 set "PYEXE=py -%%V"
+    )
+  )
+  if not defined PYEXE (
+    python -c "import sys; sys.exit(sys.version_info < (3, 11))" >NUL 2>NUL
+    if not errorlevel 1 set "PYEXE=python"
+  )
+  if not defined PYEXE (
+    echo Python 3.11 or newer is required ^(3.12 recommended^): https://www.python.org/downloads/
+    echo   or run:  winget install Python.Python.3.12
     pause
     exit /b 1
   )
-  echo [1/3] Creating the Python environment ^(one time^)...
-  python -m venv .venv || goto :err
+  echo [1/3] Creating the Python environment with !PYEXE! ^(one time^)...
+  !PYEXE! -m venv .venv || goto :err
+)
+".venv\Scripts\python.exe" -c "import fastapi, uvicorn, numpy, scipy, soundfile, h5py, pandas" >NUL 2>NUL
+if errorlevel 1 (
+  echo [1/3] Installing Python packages ^(one time, a few minutes^)...
   ".venv\Scripts\python.exe" -m pip install --upgrade pip
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt || goto :err
 )

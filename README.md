@@ -11,7 +11,7 @@ while controlling how much sound is added.
 
 ## Quick start (Windows)
 
-1. Requirements: **Python 3.10+** (tested 3.12.10). **Node.js LTS** is needed **once** to build the interface (tested 24.20).
+1. Requirements: **Python 3.11+** (tested 3.12.10; the pinned NumPy/pandas need 3.11). **Node.js LTS** is needed **once** to build the interface (tested 24.20).
 2. Double-click **`start.bat`**. On first run it creates `.venv`, installs `requirements.txt`, builds the
    frontend, then starts the server and opens **http://127.0.0.1:8765**.
 3. After installation everything works **offline**. No accounts, APIs or cloud services; recordings never leave the computer.
