@@ -188,3 +188,28 @@ def test_explicit_null_cap_means_unconstrained():
     free = client.post(f"/api/projects/{pid}/optimize", json={"objective": "max_masking", "masker_cap_rel_db": None}).json()
     assert capped["constraints"]["max_masker_la"] is not None and free["constraints"]["max_masker_la"] is None
     assert free["levels"]["LA_masker"] > capped["levels"]["LA_masker"] + 5
+
+
+def test_audition_unsaved_sources_solo_and_mix():
+    pid = new_project("Audition")
+    mods = [{"id": "wind_1", "type": "wind", "enabled": True, "level_db": -6, "params": {}},
+            {"id": "crickets_1", "type": "crickets", "enabled": True, "level_db": 6, "params": {"density": 0.8}},
+            {"id": "owl_1", "type": "owl", "enabled": False, "level_db": 0, "params": {"rate": 0}}]
+
+    def get(solo):
+        r = client.post(f"/api/projects/{pid}/audition", json={"modules": mods, "solo": solo})
+        assert r.status_code == 200, r.text
+        x, fs = sf.read(io.BytesIO(r.content))
+        return x, fs, r.headers["X-Audition-Silent"]
+
+    mix, fs, _ = get(None)
+    wind, _, _ = get("wind_1")
+    crick, _, _ = get("crickets_1")
+    assert fs == 48000 and mix.shape == (20 * fs, 2)
+    # solos share the mix's gain, so they add up to the mix (16-bit quantisation aside)
+    assert np.max(np.abs(wind + crick - mix)) < 3 / 32768
+    assert np.array_equal(get(None)[0], mix)  # deterministic: same seed + ids = same sound
+    assert get("owl_1")[2] == "1"  # a disabled source can still be soloed; zero rate is reported as silent
+    assert client.post(f"/api/projects/{pid}/audition", json={"modules": mods, "solo": "nope"}).status_code == 400
+    off = [dict(m, enabled=False) for m in mods]
+    assert client.post(f"/api/projects/{pid}/audition", json={"modules": off}).status_code == 400

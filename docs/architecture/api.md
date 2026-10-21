@@ -17,6 +17,7 @@ Errors return HTTP 4xx with `{"detail": "<user-readable message>"}`.
 | POST | `/projects/{id}/target/demo` | `{kind: drill|grinder_hf|generator_lf|fan}` (labelled SYNTHETIC) |
 | GET | `/projects/{id}/target/analysis` | full analysis |
 | PUT | `/projects/{id}/scene` | `{preset?, season?, time_of_day?, weather?, modules?[]}` |
+| POST | `/projects/{id}/audition` | `{modules[], solo?}` → 20 s 16-bit WAV of the (unsaved) sources: mix of enabled ones, or `solo` alone at the mix's gain; header `X-Audition-Silent` |
 | POST | `/projects/{id}/optimize` | `{objective, weights?, margin_db?, k_db?, masker_cap_rel_db? (null = no cap), max_mix_la?, allow_eq?, pareto?}` |
 | POST | `/projects/{id}/generate` | start render job → `{job}` |
 | GET | `/jobs/{job}` | `{status, progress, message, result, error}` |

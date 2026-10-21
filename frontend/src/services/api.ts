@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-async function req<T>(method: string, path: string, body?: unknown, isForm = false): Promise<T> {
+async function send(method: string, path: string, body?: unknown, isForm = false): Promise<Response> {
   const init: RequestInit = { method, headers: {} };
   if (body !== undefined) {
     if (isForm) init.body = body as FormData;
@@ -33,7 +33,11 @@ async function req<T>(method: string, path: string, body?: unknown, isForm = fal
     }
     throw new ApiError(res.status, msg);
   }
-  return (await res.json()) as T;
+  return res;
+}
+
+async function req<T>(method: string, path: string, body?: unknown, isForm = false): Promise<T> {
+  return (await (await send(method, path, body, isForm)).json()) as T;
 }
 
 export type Domain = "PASCAL" | "DIGITAL_CALIBRATED" | "DIGITAL_UNCALIBRATED" | "SPECTRUM_ONLY";
@@ -129,6 +133,10 @@ export const api = {
   evaluation: (id: string) => req<{ evaluation: Evaluation; render: RenderInfo }>("GET", `/projects/${id}/evaluation`),
   exportFiles: (id: string, body: unknown) => req<{ job: string }>("POST", `/projects/${id}/export`, body),
   listExports: (id: string) => req<{ file: string; bytes: number }[]>("GET", `/projects/${id}/exports`),
+  audition: async (id: string, modules: SceneModule[], solo: string | null) => {
+    const res = await send("POST", `/projects/${id}/audition`, { modules, solo });
+    return { blob: await res.blob(), silent: res.headers.get("X-Audition-Silent") === "1" };
+  },
   audioUrl: (id: string, stream: string, bust: string | number) => `/api/projects/${id}/audio/${stream}?v=${bust}`,
   exportUrl: (id: string, file: string) => `/api/projects/${id}/exports/${encodeURIComponent(file)}`,
 };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SceneConfig, type SceneModule } from "../services/api";
 import { useStudio } from "../hooks/useStudio";
@@ -22,6 +22,7 @@ const PARAMS: Record<string, { key: string; label: string; min: number; max: num
   woodpecker: [{ key: "rate", label: "Drums / s", min: 0, max: 0.3, step: 0.01 }],
   ambience: [],
 };
+const MIX = "__mix__";
 const DEFAULTS: Record<string, number> = { activity: 0.5, pitch: 1, distance: 0.3, strength: 0.5, gustiness: 0.5, flow: 0.5, intensity: 0.5, rate: 0.05, size: 0.5, temperature_c: 22, density: 0.6 };
 
 export default function Soundscape() {
@@ -33,6 +34,19 @@ export default function Soundscape() {
   const [busy, setBusy] = useState(false);
   const [settings, setSettings] = useState(project?.settings);
   useEffect(() => { setScene(project?.scene ?? null); setSettings(project?.settings); }, [project?.id]);
+  // audition: MIX (all enabled sources) or one source id, looped; edits re-render and resume in place
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const reqId = useRef(0);
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => stop, [project?.id]);
+  const modsKey = JSON.stringify(scene?.modules ?? []);
+  useEffect(() => {
+    if (!playing) return;
+    if (playing !== MIX && !scene?.modules.some((m) => m.id === playing)) { stop(); return; }
+    const t = setTimeout(() => play(playing, audio.current?.currentTime ?? 0), 400);
+    return () => clearTimeout(t);
+  }, [modsKey]);
   if (!project || !catalog) return <Empty title="No project open">Create or open a project on the Dashboard first.</Empty>;
 
   async function choose(preset: string, m = mods) {
@@ -55,6 +69,31 @@ export default function Soundscape() {
     setSettings(ns);
     try { await api.patchProject(project!.id, { settings: patch }); await refresh(); } catch (e: any) { toast(e.message, "error"); }
   }
+  function stop() {
+    reqId.current++;
+    if (audio.current) { audio.current.pause(); URL.revokeObjectURL(audio.current.src); audio.current = null; }
+    setPlaying(null); setLoading(false);
+  }
+  async function play(what: string, resumeAt = 0) {
+    if (!scene) return;
+    const id = ++reqId.current;
+    setPlaying(what); setLoading(true);
+    try {
+      const { blob, silent } = await api.audition(project!.id, scene.modules, what === MIX ? null : what);
+      if (id !== reqId.current) return;
+      const a = new Audio(URL.createObjectURL(blob));
+      a.loop = true;
+      a.addEventListener("loadedmetadata", () => { a.currentTime = resumeAt % (a.duration || 1); }, { once: true });
+      if (audio.current) { audio.current.pause(); URL.revokeObjectURL(audio.current.src); }
+      audio.current = a;
+      await a.play();
+      if (silent && resumeAt === 0) toast(what === MIX ? "The enabled sources are silent in this excerpt." : `${label(scene.modules.find((m) => m.id === what)!.type)} makes no sound in this 20 s excerpt — raise its rate or activity.`, "info");
+    } catch (e: any) {
+      if (id === reqId.current) { toast(e.message, "error"); stop(); }
+    } finally { if (id === reqId.current) setLoading(false); }
+  }
+  const toggle = (what: string) => (playing === what ? stop() : play(what));
+  const playIcon = (what: string) => (playing !== what ? "▶" : loading ? "…" : "■");
   const update = (i: number, m: Partial<SceneModule>) => { if (!scene) return; const ms = [...scene.modules]; ms[i] = { ...ms[i], ...m }; setScene({ ...scene, modules: ms }); setDirty(true); };
   const addModule = (type: string) => { if (!scene) return; setScene({ ...scene, modules: [...scene.modules, { id: `${type}_${Date.now() % 100000}`, type, enabled: true, level_db: -6, params: {} }] }); setDirty(true); };
   const label = (t: string) => catalog.modules.find((m) => m.type === t)?.label || t;
@@ -88,6 +127,7 @@ export default function Soundscape() {
           <Panel title={`Sound sources · ${scene.name}`} right={<div className="flex gap-2">
             <select className="input !w-44" value="" onChange={(e) => e.target.value && addModule(e.target.value)} aria-label="Add sound source">
               <option value="">+ Add source…</option>{catalog.modules.map((m) => <option key={m.type} value={m.type}>{m.label}</option>)}</select>
+            <button className="btn" disabled={scene.modules.length === 0} onClick={() => toggle(MIX)} title="Listen to all enabled sources together (20 s loop)">{playIcon(MIX)} {playing === MIX ? "Stop" : "Play mix"}</button>
             <button className="btn btn-primary" disabled={!dirty || busy} onClick={saveModules}>Save changes</button></div>}>
             {scene.modules.length === 0 && <p className="text-muted">No sources yet — add one above.</p>}
             <div className="space-y-2">
@@ -97,6 +137,8 @@ export default function Soundscape() {
                   <div key={m.id} className="rounded-lg border border-line bg-panel-2 p-3" style={{ opacity: m.enabled ? 1 : 0.5 }}>
                     <div className="flex flex-wrap items-center gap-3">
                       <input type="checkbox" checked={m.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} aria-label={`Enable ${label(m.type)}`} />
+                      <button className="btn btn-ghost !w-8 !px-0 !py-1" onClick={() => toggle(m.id)} aria-label={`${playing === m.id ? "Stop" : "Play"} ${label(m.type)}`} title="Listen to this source alone (20 s loop)"
+                        style={playing === m.id ? { color: "var(--accent)" } : undefined}>{playIcon(m.id)}</button>
                       <span className="min-w-[150px] font-semibold">{label(m.type)}</span>
                       {meta?.is_bed ? <Badge tone="masker">broadband bed</Badge> : <Badge>events</Badge>}
                       {(meta?.tonal_fraction ?? 0) > 0.5 && <Badge tone="warn">tonal</Badge>}
@@ -115,7 +157,8 @@ export default function Soundscape() {
                 );
               })}
             </div>
-            {mode === "beginner" && <p className="mt-3 text-[12px] text-faint">Switch to Expert mode (sidebar) for per-source parameters such as bird activity, wind gustiness or cricket temperature.</p>}
+            <p className="mt-3 text-[12px] text-faint">▶ plays one source alone, "Play mix" plays all enabled sources — both at the balance set by the level sliders, before the Masking Laboratory sets the overall level. Changes are heard as you make them.</p>
+            {mode === "beginner" && <p className="mt-1 text-[12px] text-faint">Switch to Expert mode (sidebar) for per-source parameters such as bird activity, wind gustiness or cricket temperature.</p>}
           </Panel>
           <div className="space-y-4">
             <Panel title="Generation settings">

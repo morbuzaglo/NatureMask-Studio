@@ -26,6 +26,9 @@ spectrogram (recordings), and a **masking difficulty** indicator with reasons.
 ## 2. Soundscape designer
 Choose an environment preset; optionally season, time of day and weather. Sources can be enabled,
 levelled, removed or added; Expert mode exposes parameters (bird activity, gustiness, cricket temperature…).
+▶ next to a source plays it alone, **Play mix** plays all enabled sources (20 s loop, no machine, before the
+Masking Laboratory sets the overall level). Both keep the balance of the level sliders, and edits are heard
+as you make them — so you can try combinations before saving.
 Set duration (≥ 10 s), sample rate, seed (same seed → identical audio), loop, and adaptation.
 
 ## 3. Masking laboratory

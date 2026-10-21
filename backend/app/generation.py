@@ -1,10 +1,13 @@
 """Chunked soundscape generation to disk, preview streams, and masking evaluation from the actual audio."""
 from __future__ import annotations
 
+import io
 import json
 import math
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 import numpy as np
 import soundfile as sf
@@ -15,7 +18,8 @@ from .dsp import spectral
 from .engine import analysis_grid, target_audio_block_source, target_psd
 from .optimization.optimizer import adaptation_curve
 from .psychoacoustics import masking
-from .synthesis.scene import ADAPT_RATE, Scene
+from .synthesis.core import derive_seed
+from .synthesis.scene import ADAPT_RATE, MODULE_TYPES, Scene
 
 PEAK_TARGET = 10 ** (-1 / 20)  # -1 dBFS
 ANALYSIS_WINDOW_S = 60.0
@@ -111,6 +115,59 @@ def generate(project_dir: str, meta: dict, arrays: dict, scene_cfg: dict, opt: d
         json.dump(ev, fh, default=float)
     progress(1.0, "Done")
     return {"render": info, "evaluation": ev}
+
+
+AUDITION_S = 20.0
+AUDITION_MAX_FS = 48000
+AUDITION_FADE_S = 0.05
+
+
+@lru_cache(maxsize=16)
+def _module_audio_cached(mtype: str, params_key: str, seed: int, fs: int, seconds: float) -> np.ndarray:
+    params = json.loads(params_key)
+    mod = MODULE_TYPES[mtype](fs, seed, params, seconds + 5)
+    return mod.render(0, int(seconds * fs)).astype(np.float32)
+
+
+def _module_audio(m: dict, fs: int, scene_seed: int, seconds: float) -> np.ndarray:
+    """Module audio at 0 dB level, seeded exactly as Scene seeds it (same id + scene seed = same sound)."""
+    params = dict(m.get("params", {}))
+    params.setdefault("gust_seed", derive_seed(scene_seed, "gusts"))
+    return _module_audio_cached(m["type"], json.dumps(params, sort_keys=True), derive_seed(scene_seed, m["id"]),
+                                int(fs), float(seconds))
+
+
+def audition(modules: list, settings: dict, solo: str | None = None) -> tuple[bytes, dict]:
+    """Short WAV of the designer's sources (no optimizer gains, no machine). A soloed source uses the SAME
+    gain as the mix of all enabled sources, so the per-source level balance stays audible between solos."""
+    fs = min(int(settings.get("fs", 48000)), AUDITION_MAX_FS)
+    seed = int(settings.get("seed", 1))
+    mix_ids = [m["id"] for m in modules if m.get("enabled", True)]
+    if solo is not None and solo not in {m["id"] for m in modules}:
+        raise ValueError(f"Unknown source {solo}")
+    wanted = [m for m in modules if m["id"] in mix_ids or m["id"] == solo]
+    if not wanted:
+        raise ValueError("Enable at least one sound source.")
+    with ThreadPoolExecutor(max_workers=min(4, len(wanted))) as ex:
+        audio = dict(zip([m["id"] for m in wanted],
+                         ex.map(lambda m: _module_audio(m, fs, seed, AUDITION_S), wanted)))
+    gains = {m["id"]: 10 ** (float(m.get("level_db", 0)) / 20) for m in wanted}
+    n = int(AUDITION_S * fs)
+    mix = np.zeros((n, 2))
+    for i in mix_ids:
+        mix += audio[i] * gains[i]
+    out = audio[solo] * gains[solo] if solo is not None else mix
+    peak = max(float(np.max(np.abs(mix))), float(np.max(np.abs(out))))
+    out = out * (PEAK_TARGET / peak if peak > 0 else 1.0)
+    nf = int(AUDITION_FADE_S * fs)
+    ramp = np.linspace(0, 1, nf)[:, None]
+    out[:nf] *= ramp
+    out[-nf:] *= ramp[::-1]
+    buf = io.BytesIO()
+    sf.write(buf, np.clip(out, -1, 1), fs, format="WAV", subtype="PCM_16")
+    with np.errstate(divide="ignore"):
+        rms_db = float(10 * np.log10(np.mean(out ** 2)))
+    return buf.getvalue(), {"fs": fs, "seconds": AUDITION_S, "rms_dbfs": rms_db, "silent": not rms_db > -80}
 
 
 def load_masker(project_dir: str):

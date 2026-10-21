@@ -8,13 +8,13 @@ import os
 
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from .. import engine
 from ..acoustics.bands import band_centres, nominal_label
 from ..exports.exporters import export as do_export
-from ..generation import analysis_window_s, generate as do_generate
+from ..generation import analysis_window_s, audition as do_audition, generate as do_generate
 from ..io import importers
 from ..optimization.optimizer import OBJECTIVES, OptimizeRequest, optimize_masking
 from ..storage import projects as store
@@ -382,6 +382,26 @@ def set_scene(pid: str, body: SceneBody):
     p["optimization"] = None
     store.save(p)
     return ok(cfg)
+
+
+class AuditionBody(BaseModel):
+    modules: list[dict]
+    solo: str | None = None
+
+
+@router.post("/projects/{pid}/audition")
+def audition(pid: str, body: AuditionBody):
+    """Listen to the (possibly unsaved) sources in the designer: the mix of enabled sources, or one solo."""
+    p = _proj(pid)
+    for m in body.modules:
+        if m.get("type") not in MODULE_TYPES or not m.get("id"):
+            raise HTTPException(400, f"Unknown sound module {m.get('type')}")
+    try:
+        wav, info = do_audition(body.modules, p["settings"], body.solo)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(wav, media_type="audio/wav", headers={"Cache-Control": "no-store",
+                                                          "X-Audition-Silent": "1" if info["silent"] else "0"})
 
 
 # ------------------------------------------------------------------------------------------ optimize
